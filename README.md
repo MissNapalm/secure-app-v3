@@ -1,64 +1,66 @@
-# Secure App - Twitter Clone with Security Best Practices
+# Secure Twitter Clone
 
-A Twitter-like social media application built from the ground up with security as the primary focus. This project demonstrates comprehensive security engineering practices including authentication, authorization, input validation, rate limiting, and secure session management.
+A full-stack social media application demonstrating security engineering principles. Built with Go and PostgreSQL, this project implements multi-layered security controls including MFA, rate limiting, input validation, and secure session management.
 
-## 🛡️ Security Features Implemented
+**Status**: Core security features implemented and tested. Currently refining authentication flow and rate limiting configurations.
+
+## Security Features
 
 ### Authentication & Authorization
-- **Multi-Factor Authentication (MFA)**: Time-based one-time password system via email
-- **JWT-based Sessions**: Stateless authentication with configurable expiration
-- **Secure Password Storage**: bcrypt hashing with automatic salting (cost factor: 14)
-- **Password Reset Flow**: Secure token-based password recovery with expiration
-- **Token Expiration**: 30-second MFA tokens, 15-minute password reset tokens, 24-hour JWT sessions
+- Multi-factor authentication via email-based OTP
+- JWT-based stateless sessions with 24-hour expiration
+- bcrypt password hashing (cost factor: 14)
+- Secure password reset with time-limited tokens
+- Token expiration: 5-minute MFA codes, 1-hour password reset tokens
 
 ### Input Validation & Sanitization
-- **Comprehensive Input Sanitization**: Removes control characters and potentially harmful content
-- **Length Validation**: Prevents buffer overflow attacks with strict input limits
-- **Content Security**: HTML entity escaping on the frontend to prevent XSS
-- **SQL Injection Prevention**: Parameterized queries throughout the application
-- **Email Validation**: Proper email format verification
+- Server-side input sanitization removes control characters
+- Length validation prevents buffer overflow attacks (5000 char limit)
+- HTML entity escaping on frontend prevents XSS
+- Parameterized SQL queries prevent injection attacks
+- Email format validation
 
 ### Rate Limiting
-- **IP-based Rate Limiting**: Different limits for different endpoints
-  - Login/Registration: 5 requests per minute per IP
-  - Tweet Creation: 5 requests per minute per IP
-- **Distributed Rate Limiter Support**: Per-IP tracking with automatic cleanup
-- **Brute Force Protection**: Prevents automated attack attempts
+- IP-based rate limiting with configurable thresholds per endpoint
+- Login/Registration: 100 requests per minute per IP
+- Tweet Creation: 100 requests per minute per IP  
+- Per-IP tracking prevents distributed brute force attacks
+- Automatic cleanup of rate limiter state
 
 ### Network Security
-- **HTTPS Enforcement**: Automatic redirect from HTTP to HTTPS in production
-- **CORS Configuration**: Controlled cross-origin resource sharing
-- **Secure Headers**: Production-ready security headers
-- **TLS/STARTTLS Support**: Encrypted email communication
+- HTTPS enforcement via middleware (production)
+- CORS configuration for controlled cross-origin access
+- TLS/STARTTLS support for email transmission
+- Proxy-aware IP extraction (X-Forwarded-For, X-Real-IP)
 
 ### Database Security
-- **Parameterized Queries**: Complete protection against SQL injection
-- **Password Never Stored in Plain Text**: All passwords hashed before storage
-- **Secure Token Storage**: Reset and MFA tokens properly managed
-- **Cascading Deletes**: Proper referential integrity
-- **Indexed Queries**: Performance optimization without security compromise
+- Parameterized queries prevent SQL injection
+- Passwords stored as bcrypt hashes only
+- Indexed queries on frequently accessed columns
+- Foreign key constraints with cascading deletes
+- UTC timestamps prevent timezone manipulation
 
 ### Session Management
-- **Secure Token Generation**: Cryptographically secure random token generation
-- **Token Invalidation**: MFA tokens cleared after successful use
-- **Expiration Enforcement**: Automatic token expiration with UTC timestamps
-- **No Token Reuse**: Single-use tokens for sensitive operations
+- Cryptographically secure token generation (crypto/rand)
+- Single-use MFA tokens with automatic invalidation
+- UTC-based expiration enforcement
+- No token reuse for sensitive operations
 
-## 🏗️ Architecture
+## Architecture
 
 ### Backend (Go)
-- **Framework**: Gorilla Mux for routing
-- **Database**: PostgreSQL with connection pooling
-- **JWT**: golang-jwt for token management
-- **Password Hashing**: bcrypt (golang.org/x/crypto)
-- **Rate Limiting**: golang.org/x/time/rate
-- **Email**: Native Go SMTP with STARTTLS support
+- Gorilla Mux for HTTP routing
+- PostgreSQL for data persistence
+- golang-jwt/jwt for token management
+- bcrypt for password hashing
+- golang.org/x/time/rate for rate limiting
+- Native SMTP with STARTTLS
 
 ### Frontend (Vanilla JavaScript)
-- **No Framework Dependencies**: Lightweight and auditable
-- **XSS Prevention**: HTML escaping for all user content
-- **Secure Storage**: LocalStorage for tokens (production would use httpOnly cookies)
-- **CSRF Awareness**: Token-based authentication prevents CSRF
+- No framework dependencies for auditability
+- HTML escaping prevents XSS
+- LocalStorage for JWT tokens (httpOnly cookies recommended for production)
+- Token-based auth prevents CSRF
 
 ### Database Schema
 ```sql
@@ -81,7 +83,7 @@ tweets
 └── created_at (TIMESTAMP, INDEXED)
 ```
 
-## 🚀 Setup & Installation
+## Setup & Installation
 
 ### Prerequisites
 - Go 1.19+
@@ -129,32 +131,26 @@ go run main.go
 
 The application will be available at `http://localhost:8080`
 
-## 🔐 Security Considerations for Production
+## Production Security Considerations
 
 ### Current Implementation
-This is a demonstration project. For production deployment, consider:
+Environment variables for secrets, JWT configuration, HTTPS middleware, and rate limiting are implemented with development-friendly defaults.
 
-1. **Environment Variables**: All secrets loaded from environment, never hardcoded
-2. **JWT Secret**: Uses environment variable (falls back to default for dev only)
-3. **HTTPS**: Enforcement middleware included
-4. **Rate Limiting**: Implemented but set to development-friendly limits
+### Additional Hardening for Production
+- httpOnly, Secure, SameSite cookies instead of localStorage
+- CSRF token protection
+- Content Security Policy headers
+- TOTP-based MFA instead of email codes
+- Session revocation mechanism
+- Additional security headers (HSTS, X-Frame-Options, X-Content-Type-Options)
+- Database connection encryption
+- Comprehensive audit logging
+- API request signing
+- Secrets management service integration
+- Account lockout after failed attempts
+- Automated security scanning integration
 
-### Production Recommendations
-- [ ] Use httpOnly, Secure, SameSite cookies instead of localStorage
-- [ ] Implement CSRF token protection
-- [ ] Add Content Security Policy headers
-- [ ] Use TOTP (Time-based OTP) instead of email-based MFA
-- [ ] Implement session revocation
-- [ ] Add security headers (HSTS, X-Frame-Options, etc.)
-- [ ] Set up database connection encryption
-- [ ] Implement proper logging and monitoring
-- [ ] Add API request signing
-- [ ] Use a secrets management service (Vault, AWS Secrets Manager)
-- [ ] Implement account lockout after failed attempts
-- [ ] Add honeypot fields for bot detection
-- [ ] Set up automated security scanning (SAST/DAST)
-
-## 🧪 Testing Security Features
+## Testing Security Features
 
 ### Manual Testing Scenarios
 
@@ -209,7 +205,7 @@ curl -X POST http://localhost:8080/api/password-reset/confirm \
   -d '{"email":"test@example.com","reset_code":"CODE_FROM_EMAIL","new_password":"newpassword123"}'
 ```
 
-## 📊 API Endpoints
+## API Endpoints
 
 ### Public Endpoints
 - `POST /api/register` - User registration with automatic MFA
@@ -221,54 +217,44 @@ curl -X POST http://localhost:8080/api/password-reset/confirm \
 - `GET /api/tweets` - Fetch recent tweets
 - `POST /api/tweets` - Create a new tweet
 
-## 🎯 Skills Demonstrated
+## Technical Implementation
 
-This project showcases expertise in:
+**Security Engineering:**
+- Multi-factor authentication with email-based OTP
+- JWT session management with proper expiration
+- Password hashing with bcrypt (cost factor 14)
+- Rate limiting with per-IP, per-endpoint controls
+- Input sanitization and validation across all endpoints
+- Parameterized SQL queries for injection prevention
 
-- **Secure Authentication Patterns**: MFA, JWT, password hashing, session management
-- **Input Validation**: Sanitization, length checks, SQL injection prevention
-- **Rate Limiting**: IP-based throttling, distributed rate limiting architecture
-- **Cryptography**: Secure random generation, bcrypt, token management
-- **API Security**: Authorization headers, token validation, endpoint protection
-- **Database Security**: Parameterized queries, proper indexing, referential integrity
-- **Email Security**: STARTTLS, secure SMTP communication
-- **Frontend Security**: XSS prevention, secure token storage, CORS handling
-- **Production Readiness**: Environment configuration, HTTPS enforcement, security headers
-- **Go Best Practices**: Error handling, middleware patterns, structured logging
+**System Design:**
+- Middleware architecture for cross-cutting concerns
+- Cryptographically secure token generation
+- UTC timestamp handling for timezone safety
+- Environment-based configuration management
+- RESTful API design
+- Defense-in-depth security model
 
-## 📝 Code Quality
+**Code Quality:**
+- No hardcoded secrets
+- Comprehensive error handling without information leakage
+- Security event logging
+- Clean, maintainable code structure
 
-- **No Hardcoded Secrets**: All sensitive data from environment
-- **Comprehensive Error Handling**: Secure error messages that don't leak information
-- **Security-First Design**: Every feature built with security considerations
-- **Clean Code**: Well-structured, commented, and maintainable
-- **Logging**: Security events logged for audit trails
-- **Type Safety**: Strong typing throughout the application
+## Development Notes
 
-## 🤝 Contributing
+Active development focuses on:
+- Authentication flow refinement
+- Rate limiting optimization based on testing
+- MFA token timing (updated from 30s to 5min based on usability feedback)
+- Password reset flow (updated from 15min to 1hr expiration)
 
-This is a portfolio/demonstration project, but feedback on security improvements is always welcome!
+This iterative approach demonstrates practical engineering: implement, test, refine based on real-world usage.
 
-## 🔄 Development Notes
+## License
 
-This project is under active development with ongoing improvements to:
-- Rate limiting configurations based on testing
-- MFA token expiration timings (recently updated from 30s to 5min based on UX testing)
-- Email delivery reliability
-- Error handling and logging
-
-The iterative development process demonstrates real-world engineering: testing, refining, and improving based on practical use cases.
-
-## 📄 License
-
-MIT License - See LICENSE file for details
-
-## 👨‍💻 Author
-
-**Security Engineer Portfolio Project**
-
-This application was built to demonstrate security engineering skills including authentication systems, input validation, rate limiting, and secure coding practices. It represents a foundation that could be extended with additional security features for production use.
+MIT License
 
 ---
 
-**⚠️ Disclaimer**: This is a demonstration project built for portfolio purposes. While it implements many security best practices, additional hardening would be required for production deployment.
+**Portfolio Project** - Demonstrates security engineering capabilities including authentication systems, input validation, rate limiting, and secure coding practices. Built to showcase practical security implementation skills.
