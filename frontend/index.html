@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitter Clone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #15202b;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            color: #1da1f2;
+        }
+
+        .auth-forms {
+            background: #192734;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #8899a6;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #38444d;
+            border-radius: 8px;
+            background: #253341;
+            color: #fff;
+            font-size: 15px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #1da1f2;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #1da1f2;
+            color: #fff;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background: #1a91da;
+        }
+
+        .btn-secondary {
+            background: #253341;
+            margin-top: 5px;
+        }
+
+        .btn-secondary:hover {
+            background: #2d3f50;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .message.error {
+            background: #f4212e;
+            color: #fff;
+        }
+
+        .message.success {
+            background: #17bf63;
+            color: #fff;
+        }
+
+        .message.info {
+            background: #1da1f2;
+            color: #fff;
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard-header {
+            background: #192734;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            padding: 8px 16px;
+            background: #253341;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            background: #2d3f50;
+        }
+
+        .tweet-compose {
+            background: #192734;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .tweet-compose textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #38444d;
+            border-radius: 8px;
+            background: #253341;
+            color: #fff;
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .tweet-compose textarea:focus {
+            outline: none;
+            border-color: #1da1f2;
+        }
+
+        .char-count {
+            text-align: right;
+            color: #8899a6;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        .tweet-list {
+            background: #192734;
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .tweet {
+            padding: 15px;
+            border-bottom: 1px solid #38444d;
+        }
+
+        .tweet:last-child {
+            border-bottom: none;
+        }
+
+        .tweet-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .tweet-username {
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .tweet-time {
+            color: #8899a6;
+            font-size: 13px;
+        }
+
+        .tweet-content {
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #253341;
+            color: #8899a6;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: #1da1f2;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐦 Twitter Clone</h1>
+        </div>
+
+        <!-- Auth Section -->
+        <div id="auth-section" class="auth-forms">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showTab('login')">Login</button>
+                <button class="tab-btn" onclick="showTab('register')">Register</button>
+            </div>
+
+            <div id="message"></div>
+
+            <!-- Login Form -->
+            <div id="login-form">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" placeholder="Enter your password">
+                </div>
+                <div class="form-group hidden" id="mfa-group">
+                    <label>MFA Code (Check Terminal)</label>
+                    <input type="text" id="login-mfa" placeholder="Enter 6-digit code">
+                </div>
+                <button class="btn" onclick="login()">Login</button>
+                <button class="btn-secondary" onclick="showTab('forgot')">Forgot Password?</button>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-form" class="hidden">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="register-username" placeholder="Choose a username">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="register-email" placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="register-password" placeholder="Choose a password">
+                </div>
+                <button class="btn" onclick="register()">Register</button>
+            </div>
+
+            <!-- Forgot Password Form -->
+            <div id="forgot-password-form" class="hidden">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="reset-email" placeholder="Enter your email">
+                </div>
+                <button class="btn" onclick="requestPasswordReset()">Send Reset Code</button>
+                
+                <div class="form-group hidden" id="reset-code-group" style="margin-top: 20px;">
+                    <label>Reset Code (Check Terminal)</label>
+                    <input type="text" id="reset-code" placeholder="Enter reset code">
+                </div>
+                <div class="form-group hidden" id="new-password-group">
+                    <label>New Password</label>
+                    <input type="password" id="new-password" placeholder="Enter new password">
+                </div>
+                <button class="btn hidden" id="confirm-reset-btn" onclick="confirmPasswordReset()">Reset Password</button>
+                <button class="btn-secondary" onclick="showTab('login')" style="margin-top: 10px;">Back to Login</button>
+            </div>
+
+            <!-- MFA Verification Screen -->
+            <div id="mfa-verify-form" class="hidden">
+                <h2 style="margin-bottom: 20px; text-align: center;">Enter MFA Code</h2>
+                <p style="color: #8899a6; text-align: center; margin-bottom: 20px;">
+                    Check your terminal for the 6-digit code
+                </p>
+                <div class="form-group">
+                    <label>MFA Code</label>
+                    <input type="text" id="mfa-verify-input" placeholder="Enter 6-digit code" maxlength="6" style="text-align: center; font-size: 24px; letter-spacing: 8px;">
+                </div>
+                <button class="btn" onclick="verifyMFAAfterRegistration()">Verify & Login</button>
+                <button class="btn-secondary" onclick="showTab('login')">Back to Login</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="dashboard">
+            <div class="dashboard-header">
+                <div class="user-info">
+                    Welcome, <span id="username-display"></span>!
+                </div>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+
+            <div class="tweet-compose">
+                <textarea id="tweet-content" placeholder="What's happening?"></textarea>
+                <div class="char-count" id="char-count">0 / 280</div>
+                <button class="btn" onclick="postTweet()">Tweet</button>
+            </div>
+
+            <div class="tweet-list">
+                <h3 style="margin-bottom: 15px;">Timeline</h3>
+                <div id="tweets"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080/api';
+        let token = localStorage.getItem('token');
+        let currentUsername = localStorage.getItem('username');
+
+        // Check if already logged in
+        if (token) {
+            showDashboard();
+        }
+
+        function showMessage(text, type = 'info') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = text;
+            messageDiv.style.display = 'block';
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showTab(tab) {
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const forgotForm = document.getElementById('forgot-password-form');
+            const mfaVerifyForm = document.getElementById('mfa-verify-form');
+            const tabs = document.querySelectorAll('.tab-btn');
+            const tabButtons = document.querySelector('.tab-buttons');
+
+            // Hide all forms
+            loginForm.classList.add('hidden');
+            registerForm.classList.add('hidden');
+            forgotForm.classList.add('hidden');
+            mfaVerifyForm.classList.add('hidden');
+            
+            // Reset active tabs
+            tabs[0].classList.remove('active');
+            tabs[1].classList.remove('active');
+
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                tabs[0].classList.add('active');
+                tabButtons.style.display = 'flex';
+            } else if (tab === 'register') {
+                registerForm.classList.remove('hidden');
+                tabs[1].classList.add('active');
+                tabButtons.style.display = 'flex';
+            } else if (tab === 'forgot') {
+                forgotForm.classList.remove('hidden');
+                tabButtons.style.display = 'none';
+            } else if (tab === 'mfa-verify') {
+                mfaVerifyForm.classList.remove('hidden');
+                tabButtons.style.display = 'none';
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById('register-username').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+
+            if (!username || !email || !password) {
+                showMessage('All fields required', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store credentials for MFA verification
+                    sessionStorage.setItem('pendingEmail', email);
+                    sessionStorage.setItem('pendingPassword', password);
+                    
+                    // Switch to MFA verification screen
+                    showTab('mfa-verify');
+                    
+                    // Clear message
+                    showMessage('Check your terminal for the MFA code', 'info');
+                    
+                    // Focus on MFA input
+                    setTimeout(() => {
+                        document.getElementById('mfa-verify-input').focus();
+                    }, 100);
+                } else {
+                    showMessage(data.message || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Network error', 'error');
+            }
+        }
+
+        async function verifyMFAAfterRegistration() {
+            const mfaCode = document.getElementById('mfa-verify-input').value;
+            const email = sessionStorage.getItem('pendingEmail');
+            const password = sessionStorage.getItem('pendingPassword');
+
+            if (!mfaCode) {
+                showMessage('Please enter MFA code', 'error');
+                return;
+            }
+
+            if (mfaCode.length !== 6) {
+                showMessage('MFA code must be 6 digits', 'error');
+                return;
+            }
+
+            try {
+                // First login attempt to get MFA requirement
+                const loginResponse = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const loginData = await loginResponse.json();
+
+                // Now login with MFA code
+                const mfaResponse = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, mfa_code: mfaCode })
+                });
+
+                const mfaData = await mfaResponse.json();
+
+                if (mfaResponse.ok) {
+                    // Clear pending credentials
+                    sessionStorage.removeItem('pendingEmail');
+                    sessionStorage.removeItem('pendingPassword');
+                    
+                    // Login successful
+                    token = mfaData.token;
+                    currentUsername = mfaData.username;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('username', currentUsername);
+                    
+                    // Clear MFA input
+                    document.getElementById('mfa-verify-input').value = '';
+                    
+                    showDashboard();
+                } else {
+                    showMessage(mfaData.message || 'Invalid MFA code', 'error');
+                }
+            } catch (error) {
+                showMessage('Network error', 'error');
+                console.error('MFA verification error:', error);
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const mfaCode = document.getElementById('login-mfa').value;
+
+            if (!email || !password) {
+                showMessage('Email and password required', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, mfa_code: mfaCode })
+                });
+
+                const data = await response.json();
+
+                if (response.status === 202) {
+                    // MFA required
+                    showMessage(`MFA Code: ${data.mfa_token}. Enter it below.`, 'info');
+                    document.getElementById('mfa-group').classList.remove('hidden');
+                } else if (response.ok) {
+                    // Login successful
+                    token = data.token;
+                    currentUsername = data.username;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('username', currentUsername);
+                    showDashboard();
+                } else {
+                    showMessage(data.message || 'Login failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Network error', 'error');
+            }
+        }
+
+        function logout() {
+            token = null;
+            currentUsername = null;
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('mfa-group').classList.add('hidden');
+            document.getElementById('login-mfa').value = '';
+        }
+
+        async function requestPasswordReset() {
+            const email = document.getElementById('reset-email').value;
+
+            if (!email) {
+                showMessage('Email required', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/password-reset/request`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(`Reset code sent! Code: ${data.reset_token}`, 'success');
+                    document.getElementById('reset-code-group').classList.remove('hidden');
+                    document.getElementById('new-password-group').classList.remove('hidden');
+                    document.getElementById('confirm-reset-btn').classList.remove('hidden');
+                } else {
+                    showMessage(data.message || 'Error sending reset code', 'error');
+                }
+            } catch (error) {
+                showMessage('Network error', 'error');
+            }
+        }
+
+        async function confirmPasswordReset() {
+            const email = document.getElementById('reset-email').value;
+            const resetCode = document.getElementById('reset-code').value;
+            const newPassword = document.getElementById('new-password').value;
+
+            if (!email || !resetCode || !newPassword) {
+                showMessage('All fields required', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/password-reset/confirm`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, reset_code: resetCode, new_password: newPassword })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('Password reset successful! Logging you in...', 'success');
+                    // Clear form
+                    document.getElementById('reset-email').value = '';
+                    document.getElementById('reset-code').value = '';
+                    document.getElementById('new-password').value = '';
+                    document.getElementById('reset-code-group').classList.add('hidden');
+                    document.getElementById('new-password-group').classList.add('hidden');
+                    document.getElementById('confirm-reset-btn').classList.add('hidden');
+                    // Go back to login
+                    setTimeout(() => showTab('login'), 2000);
+                } else {
+                    showMessage(data.message || 'Reset failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Network error', 'error');
+            }
+        }
+
+        function showDashboard() {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('username-display').textContent = currentUsername;
+            loadTweets();
+        }
+
+        async function postTweet() {
+            const content = document.getElementById('tweet-content').value;
+
+            if (!content || content.length > 280) {
+                showMessage('Tweet must be 1-280 characters', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/tweets`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ content })
+                });
+
+                if (response.ok) {
+                    document.getElementById('tweet-content').value = '';
+                    document.getElementById('char-count').textContent = '0 / 280';
+                    loadTweets();
+                } else {
+                    showMessage('Failed to post tweet', 'error');
+                }
+            } catch (error) {
+                showMessage('Network error', 'error');
+            }
+        }
+
+        async function loadTweets() {
+            try {
+                const response = await fetch(`${API_URL}/tweets`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const tweets = await response.json();
+                const tweetsDiv = document.getElementById('tweets');
+
+                if (tweets.length === 0) {
+                    tweetsDiv.innerHTML = '<p style="color: #8899a6; text-align: center;">No tweets yet. Be the first to post!</p>';
+                    return;
+                }
+
+                tweetsDiv.innerHTML = tweets.map(tweet => `
+                    <div class="tweet">
+                        <div class="tweet-header">
+                            <span class="tweet-username">@${tweet.username}</span>
+                            <span class="tweet-time">${new Date(tweet.created_at).toLocaleString()}</span>
+                        </div>
+                        <div class="tweet-content">${escapeHtml(tweet.content)}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load tweets', error);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Character counter
+        document.addEventListener('DOMContentLoaded', () => {
+            const textarea = document.getElementById('tweet-content');
+            if (textarea) {
+                textarea.addEventListener('input', (e) => {
+                    const count = e.target.value.length;
+                    document.getElementById('char-count').textContent = `${count} / 280`;
+                });
+            }
+        });
+    </script>
+</body>
+</html>
