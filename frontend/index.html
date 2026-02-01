@@ -267,10 +267,6 @@
                     <label>Password</label>
                     <input type="password" id="login-password" placeholder="Enter your password">
                 </div>
-                <div class="form-group hidden" id="mfa-group">
-                    <label>MFA Code (Check Terminal)</label>
-                    <input type="text" id="login-mfa" placeholder="Enter 6-digit code">
-                </div>
                 <button class="btn" onclick="login()">Login</button>
                 <button class="btn-secondary" onclick="showTab('forgot')">Forgot Password?</button>
             </div>
@@ -507,7 +503,6 @@
         async function login() {
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
-            const mfaCode = document.getElementById('login-mfa').value;
 
             if (!email || !password) {
                 showMessage('Email and password required', 'error');
@@ -518,17 +513,28 @@
                 const response = await fetch(`${API_URL}/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, mfa_code: mfaCode })
+                    body: JSON.stringify({ email, password })
                 });
 
                 const data = await response.json();
 
                 if (response.status === 202) {
-                    // MFA required
-                    showMessage(`MFA Code: ${data.mfa_token}. Enter it below.`, 'info');
-                    document.getElementById('mfa-group').classList.remove('hidden');
+                    // MFA required - store credentials and show MFA screen
+                    sessionStorage.setItem('pendingEmail', email);
+                    sessionStorage.setItem('pendingPassword', password);
+                    
+                    // Switch to MFA verification screen
+                    showTab('mfa-verify');
+                    
+                    // Clear message
+                    showMessage('Check your terminal for the MFA code', 'info');
+                    
+                    // Focus on MFA input
+                    setTimeout(() => {
+                        document.getElementById('mfa-verify-input').focus();
+                    }, 100);
                 } else if (response.ok) {
-                    // Login successful
+                    // Login successful (no MFA required)
                     token = data.token;
                     currentUsername = data.username;
                     localStorage.setItem('token', token);
@@ -547,10 +553,11 @@
             currentUsername = null;
             localStorage.removeItem('token');
             localStorage.removeItem('username');
+            sessionStorage.removeItem('pendingEmail');
+            sessionStorage.removeItem('pendingPassword');
             document.getElementById('auth-section').style.display = 'block';
             document.getElementById('dashboard').style.display = 'none';
-            document.getElementById('mfa-group').classList.add('hidden');
-            document.getElementById('login-mfa').value = '';
+            document.getElementById('mfa-verify-input').value = '';
             showTab('login');
         }
 
