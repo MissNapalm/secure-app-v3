@@ -9,9 +9,10 @@ A full-stack social media application demonstrating security engineering princip
 ### Authentication & Authorization
 - Multi-factor authentication via email-based OTP
 - JWT-based stateless sessions with 24-hour expiration
-- bcrypt password hashing (cost factor: 14)
+- bcrypt password hashing (cost factor: 14) with constant-time comparison
 - Secure password reset with time-limited tokens
 - Token expiration: 30-second MFA codes, 15-minute password reset tokens
+- Generic error messages prevent account enumeration
 
 ### Input Validation & Sanitization
 - Server-side input sanitization removes control characters
@@ -45,6 +46,7 @@ A full-stack social media application demonstrating security engineering princip
 - Single-use MFA tokens with automatic invalidation
 - UTC-based expiration enforcement
 - No token reuse for sensitive operations
+- Session fixation protection through token regeneration
 
 ## Architecture
 
@@ -59,8 +61,8 @@ A full-stack social media application demonstrating security engineering princip
 ### Frontend (Vanilla JavaScript)
 - No framework dependencies for auditability
 - HTML escaping prevents XSS
-- LocalStorage for JWT tokens (httpOnly cookies recommended for production)
-- Token-based auth prevents CSRF
+- LocalStorage for JWT tokens (trades CSRF protection for XSS vulnerability - httpOnly cookies recommended for production)
+- Content Security Policy would mitigate XSS risk in production
 
 ### Database Schema
 ```sql
@@ -134,21 +136,22 @@ The application will be available at `http://localhost:8080`
 ## Production Security Considerations
 
 ### Current Implementation
-Environment variables for secrets, JWT configuration, HTTPS middleware, and rate limiting are implemented with development-friendly defaults.
+Environment variables for secrets, JWT configuration, HTTPS middleware, and rate limiting are implemented. Some design choices prioritize simplicity for demonstration purposes.
 
 ### Additional Hardening for Production
-- httpOnly, Secure, SameSite cookies instead of localStorage
-- CSRF token protection
-- Content Security Policy headers
-- TOTP-based MFA instead of email codes
+- httpOnly, Secure, SameSite cookies instead of localStorage (eliminates XSS token theft)
+- Content Security Policy headers to mitigate XSS attacks
+- CSRF token protection for cookie-based sessions
+- TOTP-based MFA instead of email codes (email is unencrypted and interceptable)
 - Session revocation mechanism
 - Additional security headers (HSTS, X-Frame-Options, X-Content-Type-Options)
-- Database connection encryption
-- Comprehensive audit logging
-- API request signing
-- Secrets management service integration
-- Account lockout after failed attempts
-- Automated security scanning integration
+- Database connection encryption (TLS)
+- Comprehensive audit logging with tamper protection
+- API request signing for critical operations
+- Secrets management service integration (HashiCorp Vault, AWS Secrets Manager)
+- Account lockout after failed attempts with exponential backoff
+- Automated security scanning integration (SAST/DAST)
+- Web Application Firewall (WAF) integration
 
 ## Testing Security Features
 
@@ -245,9 +248,9 @@ curl -X POST http://localhost:8080/api/password-reset/confirm \
 
 Active development focuses on:
 - Authentication flow refinement
-- Rate limiting optimization based on testing
-- MFA token timing (updated from 30s to 5min based on usability feedback)
-- Password reset flow (updated from 15min to 1hr expiration)
+- Rate limiting optimization based on testing  
+- Email delivery reliability and fallback handling
+- Error message consistency for security
 
 This iterative approach demonstrates practical engineering: implement, test, refine based on real-world usage.
 
