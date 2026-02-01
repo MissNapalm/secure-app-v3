@@ -13,6 +13,7 @@ import (
 	"net/mail"
 	"net/smtp"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -20,10 +21,19 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/time/rate"
 )
 
 var db *sql.DB
 var jwtSecret = []byte("your-secret-key-change-in-production")
+
+// Rate limiters for different endpoints
+var (
+	// 5 requests per minute per IP for login/register
+	loginLimiter = make(map[string]*rate.Limiter)
+	// 10 requests per minute per IP for tweets
+	tweetLimiter = make(map[string]*rate.Limiter)
+)
 
 type User struct {
 	ID           int       `json:"id"`
@@ -274,6 +284,63 @@ func generateJWT(userID int, username string) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
+// sanitizeInput removes potentially harmful characters and HTML
+func sanitizeInput(input string) string {
+	// Remove leading/trailing whitespace
+	input = strings.TrimSpace(input)
+	
+	// Remove control characters
+	input = strings.Map(func(r rune) rune {
+		if r < 32 && r != '\n' && r != '\t' {
+			return -1
+		}
+		return r
+	}, input)
+	
+	// Limit length to prevent buffer overflow attacks
+	if len(input) > 5000 {
+		input = input[:5000]
+	}
+	
+	return input
+}
+
+// getRateLimiter gets or creates a rate limiter for an IP
+func getRateLimiter(ip string, limiterMap map[string]*rate.Limiter) *rate.Limiter {
+	limiter, exists := limiterMap[ip]
+	if !exists {
+		// 5 requests per minute
+		limiter = rate.NewLimiter(rate.Every(time.Second*12), 1)
+		limiterMap[ip] = limiter
+	}
+	return limiter
+}
+
+// checkRateLimit checks if request is allowed
+func checkRateLimit(ip string, limiterMap map[string]*rate.Limiter) bool {
+	limiter := getRateLimiter(ip, limiterMap)
+	return limiter.Allow()
+}
+
+// getClientIP extracts the client IP from the request
+func getClientIP(r *http.Request) string {
+	// Check X-Forwarded-For header (for proxies)
+	forwarded := r.Header.Get("X-Forwarded-For")
+	if forwarded != "" {
+		// Take the first IP if there are multiple
+		ips := strings.Split(forwarded, ",")
+		return strings.TrimSpace(ips[0])
+	}
+	
+	// Check X-Real-IP header
+	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+		return realIP
+	}
+	
+	// Fall back to RemoteAddr
+	return strings.Split(r.RemoteAddr, ":")[0]
+}
+
 func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := r.Header.Get("Authorization")
@@ -302,6 +369,18 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// enforceHTTPS redirects HTTP to HTTPS in production
+func enforceHTTPS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Only enforce in production (not localhost)
+		if r.Header.Get("X-Forwarded-Proto") != "" && r.Header.Get("X-Forwarded-Proto") != "https" {
+			http.Redirect(w, r, "https://"+r.Host+r.RequestURI, http.StatusMovedPermanently)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -318,15 +397,42 @@ func enableCORS(next http.Handler) http.Handler {
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
+	// Check rate limit
+	clientIP := getClientIP(r)
+	if !checkRateLimit(clientIP, loginLimiter) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooManyRequests)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Too many registration attempts. Please try again later."})
+		log.Printf("⚠️ Rate limit exceeded for IP: %s\n", clientIP)
+		return
+	}
+
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
+	// Sanitize inputs
+	req.Username = sanitizeInput(req.Username)
+	req.Email = sanitizeInput(req.Email)
+	req.Password = sanitizeInput(req.Password)
+
 	// Validate input
 	if req.Username == "" || req.Email == "" || req.Password == "" {
 		http.Error(w, "All fields required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate username length (3-50 chars)
+	if len(req.Username) < 3 || len(req.Username) > 50 {
+		http.Error(w, "Username must be 3-50 characters", http.StatusBadRequest)
+		return
+	}
+
+	// Validate password length (8+ chars)
+	if len(req.Password) < 8 {
+		http.Error(w, "Password must be at least 8 characters", http.StatusBadRequest)
 		return
 	}
 
@@ -371,6 +477,16 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
+	// Check rate limit
+	clientIP := getClientIP(r)
+	if !checkRateLimit(clientIP, loginLimiter) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooManyRequests)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Too many login attempts. Please try again later."})
+		log.Printf("⚠️ Rate limit exceeded for IP: %s\n", clientIP)
+		return
+	}
+
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -378,6 +494,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"message": "Invalid request"})
 		return
 	}
+
+	// Sanitize inputs
+	req.Email = sanitizeInput(req.Email)
+	req.MFACode = sanitizeInput(req.MFACode)
 
 	fmt.Printf("DEBUG LOGIN: Email='%s', MFACode='%s'\n", req.Email, req.MFACode)
 
@@ -627,6 +747,15 @@ func getTweetsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createTweetHandler(w http.ResponseWriter, r *http.Request) {
+	// Check rate limit
+	clientIP := getClientIP(r)
+	if !checkRateLimit(clientIP, tweetLimiter) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooManyRequests)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Too many requests. Please slow down."})
+		return
+	}
+
 	// Extract user from token
 	tokenString := r.Header.Get("Authorization")
 	if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
@@ -643,6 +772,9 @@ func createTweetHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
+
+	// Sanitize tweet content
+	req.Content = sanitizeInput(req.Content)
 
 	if req.Content == "" || len(req.Content) > 280 {
 		http.Error(w, "Tweet must be 1-280 characters", http.StatusBadRequest)
@@ -699,10 +831,22 @@ func main() {
 	// Serve frontend
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("../frontend")))
 
+	// Add HTTPS enforcement middleware
+	router.Use(enforceHTTPS)
+
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
+	}
+
+	// Load JWT secret from environment
+	jwtSecretEnv := os.Getenv("JWT_SECRET")
+	if jwtSecretEnv != "" {
+		jwtSecret = []byte(jwtSecretEnv)
+		log.Println("✅ JWT secret loaded from environment")
+	} else {
+		log.Println("⚠️  Using default JWT secret. Set JWT_SECRET environment variable in production.")
 	}
 
 	handler := enableCORS(router)
